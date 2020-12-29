@@ -1,5 +1,6 @@
 package cn.lanink.playercorpse.entity;
 
+import cn.nukkit.Player;
 import cn.nukkit.entity.EntityHuman;
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.nbt.tag.CompoundTag;
@@ -9,10 +10,18 @@ import cn.nukkit.nbt.tag.CompoundTag;
  */
 public class EntityPlayerCorpse extends EntityHuman {
 
-    public EntityPlayerCorpse(FullChunk chunk, CompoundTag nbt) {
+    private Player player;
+
+    public EntityPlayerCorpse(FullChunk chunk, CompoundTag nbt, Player player) {
         super(chunk, nbt);
+        this.player = player;
         this.setNameTagVisible(false);
         this.setNameTagAlwaysVisible(false);
     }
+
+    public Player getPlayer() {
+        return this.player;
+    }
+
 
 }

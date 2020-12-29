@@ -7,10 +7,10 @@ import cn.nukkit.Player;
 import cn.nukkit.entity.data.Skin;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
-import cn.nukkit.event.player.PlayerDeathEvent;
-import cn.nukkit.math.Vector3;
-import cn.nukkit.nbt.tag.CompoundTag;
+import cn.nukkit.event.entity.EntityDamageEvent;
+import cn.nukkit.event.player.PlayerQuitEvent;
 import cn.nukkit.plugin.PluginBase;
+import cn.nukkit.scheduler.Task;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -22,8 +22,8 @@ import java.util.HashSet;
  */
 public class PlayerCorpse extends PluginBase implements Listener {
 
-    private final Skin corpseSkin = new Skin();
-    public HashSet<EntityPlayerCorpse> entityPlayerCorpses = new HashSet<>();
+    public final Skin corpseSkin = new Skin();
+    public ConcurrentHashMap<Player, respawnCountdownTask> tasks = new ConcurrentHashMap<>();
 
     @Override
     public void onEnable() {
@@ -45,49 +45,32 @@ public class PlayerCorpse extends PluginBase implements Listener {
 
     @Override
     public void onDisable() {
-        if (!this.entityPlayerCorpses.isEmpty()) {
-            for (EntityPlayerCorpse entity : this.entityPlayerCorpses) {
-                entity.close();
-            }
-            this.entityPlayerCorpses.clear();
+        for (Task task : this.tasks.values()) {
+            task.cancel();
         }
     }
 
     @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        if (player == null) {
-            return;
+    public void onDamage(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Player) {
+            Player player = (Player) event.getEntity();
+            if (Math.ceil(event.getFinalDamage()) + 1 >= player.getHealth() && !this.tasks.containsKey(player)) {
+                event.setDamage(0);
+                event.setCancelled(true);
+                player.setGamemode(Player.SPECTATOR);
+                respawnCountdownTask task = new respawnCountdownTask(this, player);
+                this.getServer().getScheduler().scheduleRepeatingTask(this, task, 20);
+                this.tasks.put(player, task);
+            }
         }
-        CompoundTag nbt = EntityPlayerCorpse.getDefaultNBT(player);
-        Skin skin = player.getSkin();
-        switch(skin.getSkinData().data.length) {
-            case 8192:
-            case 16384:
-            case 32768:
-            case 65536:
-                break;
-            default:
-                skin = this.corpseSkin;
-                break;
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        if (this.tasks.containsKey(player)) {
+            this.tasks.get(player).cancel();
         }
-        skin.setTrusted(true);
-        nbt.putCompound("Skin", new CompoundTag()
-                .putByteArray("Data", skin.getSkinData().data)
-                .putString("ModelId", skin.getSkinId()));
-        nbt.putFloat("Scale", -1.0F);
-        nbt.putString("playerName", player.getName());
-        EntityPlayerCorpse entity = new EntityPlayerCorpse(player.getChunk(), nbt);
-        entity.setSkin(skin);
-        entity.setPosition(new Vector3(player.getFloorX(), Tools.getFloorY(player), player.getFloorZ()));
-        entity.setGliding(true);
-        entity.setRotation(player.getYaw(), 0);
-        entity.spawnToAll();
-        entity.updateMovement();
-        this.entityPlayerCorpses.add(entity);
-        this.getServer().getScheduler().scheduleDelayedTask(this,
-                new CloseEntityTask(this, entity),
-                20 * this.getConfig().getInt("corpseExistenceTime", 300));
     }
 
 }
