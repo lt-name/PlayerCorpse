@@ -1,8 +1,6 @@
 package cn.lanink.playercorpse;
 
-import cn.lanink.playercorpse.entity.EntityPlayerCorpse;
-import cn.lanink.playercorpse.task.CloseEntityTask;
-import cn.lanink.playercorpse.utils.Tools;
+import cn.lanink.playercorpse.task.respawnCountdownTask;
 import cn.nukkit.Player;
 import cn.nukkit.entity.data.Skin;
 import cn.nukkit.event.EventHandler;
@@ -15,7 +13,7 @@ import cn.nukkit.scheduler.Task;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author lt_name
